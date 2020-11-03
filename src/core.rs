@@ -11,6 +11,7 @@ use crate::{
     Paillier, RawCiphertext, RawPlaintext,
 };
 use curv::arithmetic::traits::*;
+use curv::arithmetic::big_num::One;
 
 impl Keypair {
     /// Generate default encryption and decryption keys.
@@ -519,6 +520,8 @@ mod tests {
 
     use super::*;
 
+    use curv::arithmetic::big_num::Pow;
+
     extern crate serde_json;
 
     fn test_keypair() -> Keypair {
@@ -566,12 +569,12 @@ mod tests {
     fn test_correct_addition_from_plaintext() {
         let (ek, dk) = test_keypair().keys();
 
-        let m1 = RawPlaintext::from(BigInt::from(2).pow(120));
+        let m1 = RawPlaintext::from(BigInt::from(2).pow(120 as u32));
         let c1 = Paillier::encrypt(&ek, m1);
-        let m2 = RawPlaintext::from(BigInt::from(2).pow(120));
+        let m2 = RawPlaintext::from(BigInt::from(2).pow(120 as u32));
         let c = Paillier::add(&ek, c1, m2);
         let m = Paillier::decrypt(&dk, c);
-        assert_eq!(m, BigInt::from(2).pow(121).into());
+        assert_eq!(m, BigInt::from(2).pow(121 as u32).into());
     }
 
     #[test]

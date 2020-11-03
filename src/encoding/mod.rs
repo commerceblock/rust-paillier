@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 pub mod integral;
 
 use crate::BigInt;
+use curv::arithmetic::big_num::One;
 
 /// Encrypted message with type information.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
