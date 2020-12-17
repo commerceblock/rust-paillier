@@ -1,9 +1,11 @@
 //! Integral code supporting both scalars and vectors.
 
+use std::vec::Vec;
+
 use std::borrow::Borrow;
 use std::marker::PhantomData;
 
-use curv::arithmetic::traits::*;
+use curv::arithmetic_sgx::traits::*;
 
 use super::{pack, unpack, EncodedCiphertext};
 use crate::traits::{Add, Decrypt, Encrypt, Mul, Rerandomize};
@@ -177,7 +179,12 @@ where
     fn add(ek: &EK, c: C, p: u64) -> EncodedCiphertext<Vec<u64>> {
         let c = c.borrow();
 
-        let m2_expanded = vec![p; c.components];
+        let mut m2_expanded = Vec::new();
+	for _ in 0..c.components {
+	    m2_expanded.push(p);
+	}
+	let m2_expanded = m2_expanded;
+
         let d = Self::add(
             ek,
             RawCiphertext::from(&c.raw),
@@ -343,7 +350,11 @@ mod tests {
     fn test_vector_encrypt_decrypt() {
         let (ek, dk) = test_keypair().keys();
 
-        let m = vec![1, 2, 3];
+//	let m = Vec::new();
+//	m.push(1);
+//	m.push(2);
+//	m.push(3);
+        let m = [1, 2, 3].to_vec();
         let c = Paillier::encrypt(&ek, &*m);
         let recovered_m = Paillier::decrypt(&dk, &c);
 

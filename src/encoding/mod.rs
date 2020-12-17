@@ -1,9 +1,13 @@
 //! Various coding schemes to be used in conjunction with the core Paillier encryption scheme.
 
+use std::vec::Vec;
+
 use std::marker::PhantomData;
 
-use curv::arithmetic::traits::ConvertFrom;
+use curv::arithmetic_sgx::traits::ConvertFrom;
 use serde::{Deserialize, Serialize};
+
+use num_traits::One;
 
 pub mod integral;
 
@@ -39,8 +43,9 @@ fn unpack<T>(
 where
     T: ConvertFrom<BigInt>,
 {
-    let mask = BigInt::one() << component_bitsize;
-    let mut components: Vec<T> = vec![];
+    let one: BigInt = One::one();
+    let mask: BigInt = one << component_bitsize;
+    let mut components: Vec<T> = Vec::new();
     for _ in 0..component_count {
         let raw_component = &packed_components % &mask; // TODO replace with bitwise AND
         let component = T::_from(&raw_component);
@@ -53,7 +58,7 @@ where
 
 #[test]
 fn test_pack() {
-    let v: Vec<u64> = vec![1, 2, 3];
+    let v: Vec<u64> = [1, 2, 3].to_vec();
 
     let component_bitsize = 64;
 

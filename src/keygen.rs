@@ -1,6 +1,9 @@
 //! Key generation following standard recommendations.
 
-use curv::arithmetic::traits::*;
+use num_traits::{One, Zero, CheckedDiv};
+use num_integer::Integer;
+
+use curv::arithmetic_sgx::traits::*;
 
 use crate::traits::*;
 use crate::{BigInt, Keypair, Paillier};
@@ -28,7 +31,7 @@ impl PrimeSampable for BigInt {
     fn sample_prime(bitsize: usize) -> Self {
         // See Practical Considerations section inside the section 11.5 "Prime Number Generation"
         // Applied Cryptography, Bruce Schneier.
-        let one = BigInt::one();
+        let one: BigInt = One::one();
         let two = &one + &one;
 
         loop {
@@ -56,8 +59,9 @@ impl PrimeSampable for BigInt {
         // q = 2p + 1;
         let two = BigInt::from(2);
         loop {
-            let q = PrimeSampable::sample_prime(bitsize);
-            let p = (&q - BigInt::one()).div_floor(&two);
+            let q: BigInt = PrimeSampable::sample_prime(bitsize);
+	    let one: BigInt = One::one();
+            let p: BigInt = (&q - one).div_floor(&two);
             if is_prime(&p) {
                 return q;
             };
@@ -99,9 +103,10 @@ pub fn is_prime(candidate: &BigInt) -> bool {
 /// This might be performed more than once, see Handbook of Applied Cryptography [Algorithm 4.9 p136]
 fn fermat(candidate: &BigInt) -> bool {
     let random = BigInt::sample_below(candidate);
-    let result = BigInt::mod_pow(&random, &(candidate - &BigInt::one()), candidate);
+    let one: BigInt = One::one();
+    let result = BigInt::mod_pow(&random, &(candidate - &one), candidate);
 
-    result == BigInt::one()
+    result == one
 }
 
 /// Perform Miller-Rabin primality test
@@ -111,8 +116,8 @@ fn miller_rabin(candidate: &BigInt, limit: usize) -> bool {
     // 1000 bits => 3 iterations
     // 2000 bits => 2 iterations
 
-    let (s, d) = rewrite(&(candidate - &BigInt::one()));
-    let one = BigInt::one();
+    let one : BigInt = One::one();
+    let (s, d) = rewrite(&(candidate - &one));
     let two = &one + &one;
 
     for _ in 0..limit {
@@ -122,7 +127,7 @@ fn miller_rabin(candidate: &BigInt, limit: usize) -> bool {
         if y == one || y == (candidate - &one) {
             continue;
         } else {
-            let mut counter = BigInt::one();
+            let mut counter: BigInt = One::one();
             while counter < (&s - &one) {
                 y = BigInt::mod_pow(&y, &two, candidate);
                 if y == one {
@@ -130,7 +135,8 @@ fn miller_rabin(candidate: &BigInt, limit: usize) -> bool {
                 } else if y == candidate - &one {
                     break;
                 }
-                counter += BigInt::one();
+		let one : BigInt = One::one();
+                counter += one;
             }
             return false;
         }
@@ -142,10 +148,10 @@ fn miller_rabin(candidate: &BigInt, limit: usize) -> bool {
 /// (i.e., 2^s is the largest power of 2 that divides the candidate).
 fn rewrite(n: &BigInt) -> (BigInt, BigInt) {
     let mut d = n.clone();
-    let mut s = BigInt::zero();
-    let one = BigInt::one();
+    let mut s: BigInt = Zero::zero();
+    let one: BigInt = One::one();
 
-    while BigInt::is_even(&d) {
+    while NumberTests::is_even(&d) {
         d >>= 1_usize;
         s = &s + &one;
     }

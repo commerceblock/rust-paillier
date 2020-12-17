@@ -1,3 +1,9 @@
+#![no_std]
+extern crate sgx_tstd as std;
+
+extern crate num_traits;
+extern crate num_integer;
+
 use std::borrow::Cow;
 
 use serde::{Deserialize, Serialize};
@@ -13,7 +19,7 @@ pub use encoding::*;
 pub use keygen::*;
 pub use traits::*;
 
-pub use curv::arithmetic::big_gmp::BigInt;
+pub use curv::arithmetic_sgx::big_num::BigInt;
 
 /// Main struct onto which most operations are added.
 pub struct Paillier;

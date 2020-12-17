@@ -32,8 +32,9 @@ pub mod vecbigint {
     use serde::de::SeqAccess;
     use serde::ser::SerializeSeq;
     use serde::{de, ser};
-    use std::fmt;
-
+    use std::{fmt, vec::Vec, string::String};
+    use num_traits::Num;
+    
     pub fn serialize<S: ser::Serializer>(x: &[BigInt], serializer: S) -> Result<S::Ok, S::Error> {
         let mut seq = serializer.serialize_seq(Some(x.len()))?;
         for e in x {

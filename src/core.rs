@@ -2,7 +2,6 @@
 
 use std::borrow::{Borrow, Cow};
 
-use rayon::join;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::traits::*;
@@ -10,7 +9,9 @@ use crate::{
     BigInt, DecryptionKey, EncryptionKey, Keypair, MinimalDecryptionKey, MinimalEncryptionKey,
     Paillier, RawCiphertext, RawPlaintext,
 };
-use curv::arithmetic::traits::*;
+use curv::arithmetic_sgx::traits::*;
+
+pub use num_traits::One;
 
 impl Keypair {
     /// Generate default encryption and decryption keys.
@@ -239,14 +240,14 @@ impl<'m, 'd> Encrypt<DecryptionKey, RawPlaintext<'m>, RawCiphertext<'d>> for Pai
         let dk_n = &dk.q * &dk.p;
         let dk_ppinv = BigInt::mod_inv(&dk_pp, &dk_qq);
         let (mp, mq) = crt_decompose(m.0.borrow(), &dk_pp, &dk_qq);
-        let (cp, cq) = join(
-            || {
+        let (cp, cq) = (
+            {
                 let rp = BigInt::sample_below(&dk.p);
                 let rnp = BigInt::mod_pow(&rp, &dk_n, &dk_pp);
                 let gmp = (1 + mp * &dk_n) % &dk_pp; // TODO[Morten] maybe there's more to get here
                 (gmp * rnp) % &dk_pp
             },
-            || {
+            {
                 let rq = BigInt::sample_below(&dk.q);
                 let rnq = BigInt::mod_pow(&rq, &dk_n, &dk_qq);
                 let gmq = (1 + mq * &dk_n) % &dk_qq; // TODO[Morten] maybe there's more to get here
@@ -273,13 +274,13 @@ impl<'m, 'r, 'd>
         let dk_ppinv = BigInt::mod_inv(&dk_pp, &dk_qq);
         let (mp, mq) = crt_decompose(m.0.borrow(), &dk_pp, &dk_qq);
         let (rp, rq) = crt_decompose(&r.0, &dk_pp, &dk_qq);
-        let (cp, cq) = join(
-            || {
+        let (cp, cq) = (
+            {
                 let rnp = BigInt::mod_pow(&rp, &dk_n, &dk_pp);
                 let gmp = (1 + mp * &dk_n) % &dk_pp; // TODO[Morten] maybe there's more to get here
                 (gmp * rnp) % &dk_pp
             },
-            || {
+            {
                 let rnq = BigInt::mod_pow(&rq, &dk_n, &dk_qq);
                 let gmq = (1 + mq * &dk_n) % &dk_qq; // TODO[Morten] maybe there's more to get here
                 (gmq * rnq) % &dk_qq
@@ -347,20 +348,22 @@ impl<'c, 'm> Decrypt<DecryptionKey, &'c RawCiphertext<'c>, RawPlaintext<'m>> for
         let dk_pp = &dk.p * &dk.p;
         let dk_n = &dk.p * &dk.q;
         let dk_pinv = BigInt::mod_inv(&dk.p, &dk.q);
-        let dk_qminusone = &dk.q - BigInt::one();
-        let dk_pminusone = &dk.p - BigInt::one();
+	let one: BigInt = One::one();
+        let dk_qminusone = &dk.q - one;
+	let one: BigInt = One::one();
+        let dk_pminusone = &dk.p - one;
         let dk_hp = h(&dk.p, &dk_pp, &dk_n);
         let dk_hq = h(&dk.q, &dk_qq, &dk_n);
         let (cp, cq) = crt_decompose(c.0.borrow(), &dk_pp, &dk_qq);
         // decrypt in parallel with respectively p and q
-        let (mp, mq) = join(
-            || {
+        let (mp, mq) = (
+            {
                 // process using p
                 let dp = BigInt::mod_pow(&cp, &dk_pminusone, &dk_pp);
                 let lp = l(&dp, &dk.p);
                 (&lp * &dk_hp) % &dk.p
             },
-            || {
+            {
                 // process using q
                 let dq = BigInt::mod_pow(&cq, &dk_qminusone, &dk_qq);
                 let lq = l(&dq, &dk.q);
@@ -385,7 +388,8 @@ impl<'c, 'm> Open<DecryptionKey, &'c RawCiphertext<'c>, RawPlaintext<'m>, Random
         let dk_nn = &dk_n * &dk_n;
 
         let m = Self::decrypt(dk, c);
-        let gminv = (BigInt::one() - (m.0.borrow() as &BigInt) * &dk_n) % &dk_nn;
+	let one: BigInt = One::one();
+        let gminv = (one - (m.0.borrow() as &BigInt) * &dk_n) % &dk_nn;
         let rn = (c.0.borrow() as &BigInt * gminv) % &dk_nn;
         let r = extract_nroot(dk, &rn);
         (m, Randomness(r))
@@ -500,8 +504,10 @@ pub fn extract_nroot(dk: &DecryptionKey, z: &BigInt) -> BigInt {
     let dk_n = &dk.p * &dk.q;
 
     let dk_pinv = BigInt::mod_inv(&dk.p, &dk.q);
-    let dk_qminusone = &dk.q - BigInt::one();
-    let dk_pminusone = &dk.p - BigInt::one();
+    let one: BigInt = One::one();
+    let dk_qminusone = &dk.q - one;
+    let one: BigInt = One::one();
+    let dk_pminusone = &dk.p - one;
 
     let dk_phi = &dk_pminusone * &dk_qminusone;
     let dk_dn = BigInt::mod_inv(&dk_n, &dk_phi);
